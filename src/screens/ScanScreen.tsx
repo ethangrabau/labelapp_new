@@ -1,9 +1,8 @@
-import React, { useState, useCallback, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Platform, Dimensions, Switch, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, Platform, Dimensions, ActivityIndicator } from 'react-native';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
-import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { analyzeImageWithGemini } from '../services/geminiImageService';
-import ImageStorageService from '../services/imageStorageService';
+import { ImageStorageService } from '../services/imageStorageService';
 import type { ScanScreenProps } from '../types/navigation';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -14,27 +13,28 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
   const device = useCameraDevice('back');
   const [error, setError] = useState('');
   const [isLowLight, setIsLowLight] = useState(false);
-  const [useDirectImageAnalysis, setUseDirectImageAnalysis] = useState(true);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const camera = useRef<Camera>(null);
 
   // Request permissions on mount
-  React.useEffect(() => {
-    (async () => {
-      try {
-        const cameraPermission = await Camera.requestCameraPermission();
-        console.log('Camera permission status:', cameraPermission);
-        setHasPermission(cameraPermission === 'granted');
-      } catch (err) {
-        console.error('Permission error:', err);
-        setError('Failed to get camera permission');
-      }
-    })();
+  useEffect(() => {
+    requestCameraPermission();
   }, []);
 
+  const requestCameraPermission = async () => {
+    try {
+      const cameraPermission = await Camera.requestCameraPermission();
+      console.log('Camera permission status:', cameraPermission);
+      setHasPermission(cameraPermission === 'granted');
+    } catch (err) {
+      console.error('Permission error:', err);
+      setError('Failed to get camera permission');
+    }
+  };
+
   const onScanPress = useCallback(async () => {
-    if (loading) return; // Prevent multiple scans while processing
+    if (loading) return;
     
     try {
       setLoading(true);
@@ -66,41 +66,23 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
         
       console.log('Processing photo at path:', filePath);
 
-      let ocrText = '';
-      let analysisResults = null;
-
-      if (useDirectImageAnalysis) {
-        setLoadingMessage('Analyzing image with AI...');
-        console.log('Using direct image analysis with Gemini Vision...');
-        const analysisStartTime = Date.now();
-        analysisResults = await analyzeImageWithGemini(filePath);
-        console.log('Direct image analysis took:', Date.now() - analysisStartTime, 'ms');
-        console.log('Total processing time:', Date.now() - startTime, 'ms');
-      } else {
-        setLoadingMessage('Reading text from image...');
-        console.log('Using OCR + Text analysis...');
-        const ocrStartTime = Date.now();
-        const result = await TextRecognition.recognize(filePath);
-        console.log('OCR took:', Date.now() - ocrStartTime, 'ms');
-        ocrText = result.text || '';
-        console.log('OCR Raw Text Result:', ocrText);
-        
-        if (!ocrText) {
-          setError('No text found');
-          return;
-        }
-      }
+      setLoadingMessage('Analyzing image with AI...');
+      console.log('Using direct image analysis with Gemini Vision...');
+      const analysisStartTime = Date.now();
+      const analysisResults = await analyzeImageWithGemini(filePath);
+      console.log('Direct image analysis took:', Date.now() - analysisStartTime, 'ms');
+      console.log('Total processing time:', Date.now() - startTime, 'ms');
 
       // Save the scan
       const scan = await ImageStorageService.saveImage(
         filePath,
-        ocrText,
+        '',  // No OCR text since we're using direct analysis
         analysisResults
       );
 
       // Navigate to analysis
       navigation.navigate('Analysis', {
-        scannedText: ocrText,
+        scannedText: '',
         directAnalysisResults: analysisResults,
         savedImagePath: scan.imagePath
       });
@@ -111,7 +93,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
       setLoading(false);
       setLoadingMessage('');
     }
-  }, [navigation, isLowLight, useDirectImageAnalysis, loading]);
+  }, [navigation, isLowLight, loading]);
 
   if (!hasPermission) {
     return (
@@ -119,15 +101,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
         <Text style={styles.errorText}>Camera permission is required</Text>
         <TouchableOpacity 
           style={styles.captureButton}
-          onPress={async () => {
-            try {
-              const permission = await Camera.requestCameraPermission();
-              setHasPermission(permission === 'granted');
-            } catch (err) {
-              console.error('Permission request error:', err);
-              setError('Failed to request camera permission');
-            }
-          }}
+          onPress={requestCameraPermission}
         >
           <Text style={styles.buttonText}>Grant Camera Permission</Text>
         </TouchableOpacity>
@@ -184,27 +158,17 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
                   Low light detected - flash will be used
                 </Text>
               )}
-              <View style={styles.modeSwitch}>
-                <Text style={styles.modeSwitchText}>
-                  {useDirectImageAnalysis ? 'Direct Image Analysis' : 'OCR + Text Analysis'}
-                </Text>
-                <Switch
-                  value={useDirectImageAnalysis}
-                  onValueChange={setUseDirectImageAnalysis}
-                  trackColor={{ false: '#767577', true: '#81b0ff' }}
-                  thumbColor={useDirectImageAnalysis ? '#2196F3' : '#f4f3f4'}
-                />
-              </View>
               <TouchableOpacity 
                 style={[
                   styles.captureButton,
+                  loading && styles.captureButtonDisabled,
                   isLowLight && styles.captureButtonLowLight
                 ]}
                 onPress={onScanPress}
                 disabled={loading}
               >
-                <Text style={styles.buttonText}>
-                  {isLowLight ? 'Scan Label (with Flash)' : 'Scan Label'}
+                <Text style={[styles.buttonText, loading && styles.buttonTextDisabled]}>
+                  {loading ? 'Processing...' : isLowLight ? 'Scan Label (with Flash)' : 'Scan Label'}
                 </Text>
               </TouchableOpacity>
             </>
@@ -293,15 +257,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: 'center',
   },
-  modeSwitch: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modeSwitchText: {
-    color: 'white',
-    marginRight: 10,
-  },
   captureButton: {
     backgroundColor: '#2196F3',
     paddingHorizontal: 30,
@@ -311,10 +266,17 @@ const styles = StyleSheet.create({
   captureButtonLowLight: {
     backgroundColor: '#FFA726',
   },
+  captureButtonDisabled: {
+    backgroundColor: '#cccccc',
+    opacity: 0.7,
+  },
   buttonText: {
     fontSize: 16,
     color: 'white',
     fontWeight: 'bold',
+  },
+  buttonTextDisabled: {
+    color: '#666666',
   },
   errorText: {
     color: '#ff4444',

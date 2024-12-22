@@ -12,7 +12,7 @@ export interface StoredScan {
 const APP_DIRECTORY = `${RNFS.DocumentDirectoryPath}/BeeSafe`;
 const SCANS_DIRECTORY = `${APP_DIRECTORY}/scans`;
 
-export const ImageStorageService = {
+const ImageStorageService = {
   async initialize() {
     try {
       // Create app directories if they don't exist
@@ -140,3 +140,5 @@ export const ImageStorageService = {
     }
   }
 };
+
+export { ImageStorageService };

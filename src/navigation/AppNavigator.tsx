@@ -35,40 +35,44 @@ const MainStack = () => (
   </Stack.Navigator>
 );
 
-const AppNavigator = () => (
-  <NavigationContainer>
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-
-          if (route.name === 'Main') {
-            iconName = focused ? 'barcode-scan' : 'barcode-scan';
-          } else if (route.name === 'History') {
-            iconName = focused ? 'history' : 'history';
-          }
-
-          return <Icon name={iconName} size={size} color={color} />;
-        },
-      })}
-    >
-      <Tab.Screen 
-        name="Main" 
-        component={MainStack}
-        options={{ 
-          headerShown: false,
-          title: 'Scan',
-        }}
-      />
-      <Tab.Screen 
-        name="History" 
-        component={HistoryScreen}
-        options={{ 
-          title: 'History',
-        }}
-      />
-    </Tab.Navigator>
-  </NavigationContainer>
-);
-
-export default AppNavigator;
+export default function AppNavigator() {
+  return (
+    <NavigationContainer>
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          tabBarIcon: ({ focused, color, size }) => {
+            let iconName = 'barcode-scan';
+            if (route.name === 'History') {
+              iconName = 'history';
+            }
+            return <Icon name={iconName} size={size} color={color} />;
+          },
+          tabBarActiveTintColor: '#2196F3',
+          tabBarInactiveTintColor: 'gray',
+          tabBarStyle: {
+            borderTopWidth: 1,
+            borderTopColor: '#e0e0e0',
+            backgroundColor: 'white',
+          },
+        })}
+      >
+        <Tab.Screen 
+          name="Main" 
+          component={MainStack}
+          options={{ 
+            headerShown: false,
+            title: 'Scan',
+          }}
+        />
+        <Tab.Screen 
+          name="History" 
+          component={HistoryScreen}
+          options={{ 
+            title: 'History',
+            headerTitle: 'Scan History',
+          }}
+        />
+      </Tab.Navigator>
+    </NavigationContainer>
+  );
+}
