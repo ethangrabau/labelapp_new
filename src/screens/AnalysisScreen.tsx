@@ -9,6 +9,7 @@ import {
   Animated,
   Modal,
   Linking,
+  Image,
 } from 'react-native';
 import { parseIngredients } from '../services/ingredientParser';
 import { analyzeIngredientsWithGemini } from '../services/geminiService';
@@ -107,17 +108,29 @@ export const AnalysisScreen: React.FC<Props> = ({ route, navigation }) => {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        {loading ? (
-          <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />
-        ) : error ? (
-          <Text style={styles.errorText}>{error}</Text>
-        ) : (
-          <>
-            <View style={styles.header}>
-              <Text style={styles.title}>Ingredient Analysis</Text>
-            </View>
-
-            <View style={styles.ingredientsList}>
+        {route.params.savedImagePath && (
+          <View style={styles.imageContainer}>
+            <Image
+              source={{ uri: `file://${route.params.savedImagePath}` }}
+              style={styles.sourceImage}
+              resizeMode="contain"
+            />
+          </View>
+        )}
+        {route.params.scannedText && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Scanned Text</Text>
+            <Text style={styles.scannedText}>{route.params.scannedText}</Text>
+          </View>
+        )}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Ingredient Analysis</Text>
+          {loading ? (
+            <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />
+          ) : error ? (
+            <Text style={styles.errorText}>{error}</Text>
+          ) : (
+            <View>
               {analysisResults.map((result, index) => (
                 <TouchableOpacity
                   key={index}
@@ -131,25 +144,33 @@ export const AnalysisScreen: React.FC<Props> = ({ route, navigation }) => {
                     <Text style={styles.safetyText}>
                       Safety: <Text style={{ color: getSafetyColor(result.safety) }}>{result.safety}</Text>
                     </Text>
+                    {result.sources?.map((source, sourceIndex) => (
+                      <TouchableOpacity 
+                        key={sourceIndex}
+                        style={styles.sourceLink}
+                        onPress={() => handleSourceClick(source.url)}
+                      >
+                        <Text style={styles.sourceLinkText}>📚 {source.title}</Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
                 </TouchableOpacity>
               ))}
             </View>
-
-            <TouchableOpacity 
-              style={styles.ocrSection} 
-              onPress={() => setShowOcrText(!showOcrText)}
-            >
-              <View style={styles.ocrHeader}>
-                <Text style={styles.ocrTitle}>See Scanned Text</Text>
-                <Text style={styles.arrow}>{showOcrText ? '▼' : '▶'}</Text>
-              </View>
-              {showOcrText && (
-                <Text style={styles.ocrText}>{route.params.scannedText}</Text>
-              )}
-            </TouchableOpacity>
-          </>
-        )}
+          )}
+        </View>
+        <TouchableOpacity 
+          style={styles.ocrSection} 
+          onPress={() => setShowOcrText(!showOcrText)}
+        >
+          <View style={styles.ocrHeader}>
+            <Text style={styles.ocrTitle}>See Scanned Text</Text>
+            <Text style={styles.arrow}>{showOcrText ? '▼' : '▶'}</Text>
+          </View>
+          {showOcrText && (
+            <Text style={styles.ocrText}>{route.params.scannedText}</Text>
+          )}
+        </TouchableOpacity>
       </ScrollView>
 
       <Modal
@@ -195,6 +216,29 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  imageContainer: {
+    width: '100%',
+    height: 200,
+    backgroundColor: '#f5f5f5',
+    marginBottom: 16,
+  },
+  sourceImage: {
+    width: '100%',
+    height: '100%',
+  },
+  section: {
+    padding: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  scannedText: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: 'monospace',
   },
   header: {
     flexDirection: 'row',

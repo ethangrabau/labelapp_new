@@ -3,6 +3,7 @@ import { StyleSheet, View, Text, TouchableOpacity, Platform, Dimensions, Switch,
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { analyzeImageWithGemini } from '../services/geminiImageService';
+import ImageStorageService from '../services/imageStorageService';
 import type { ScanScreenProps } from '../types/navigation';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -33,6 +34,8 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
   }, []);
 
   const onScanPress = useCallback(async () => {
+    if (loading) return; // Prevent multiple scans while processing
+    
     try {
       setLoading(true);
       setLoadingMessage('Taking photo...');
@@ -63,34 +66,44 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
         
       console.log('Processing photo at path:', filePath);
 
+      let ocrText = '';
+      let analysisResults = null;
+
       if (useDirectImageAnalysis) {
         setLoadingMessage('Analyzing image with AI...');
         console.log('Using direct image analysis with Gemini Vision...');
         const analysisStartTime = Date.now();
-        const results = await analyzeImageWithGemini(filePath);
+        analysisResults = await analyzeImageWithGemini(filePath);
         console.log('Direct image analysis took:', Date.now() - analysisStartTime, 'ms');
         console.log('Total processing time:', Date.now() - startTime, 'ms');
-        navigation.navigate('Analysis', { 
-          scannedText: '', // Empty string since we're not using OCR
-          directAnalysisResults: results 
-        });
       } else {
         setLoadingMessage('Reading text from image...');
         console.log('Using OCR + Text analysis...');
         const ocrStartTime = Date.now();
         const result = await TextRecognition.recognize(filePath);
         console.log('OCR took:', Date.now() - ocrStartTime, 'ms');
-        console.log('OCR Raw Text Result:', result.text);
+        ocrText = result.text || '';
+        console.log('OCR Raw Text Result:', ocrText);
         
-        if (result.text) {
-          navigation.navigate('Analysis', { 
-            scannedText: result.text,
-            directAnalysisResults: null
-          });
-        } else {
+        if (!ocrText) {
           setError('No text found');
+          return;
         }
       }
+
+      // Save the scan
+      const scan = await ImageStorageService.saveImage(
+        filePath,
+        ocrText,
+        analysisResults
+      );
+
+      // Navigate to analysis
+      navigation.navigate('Analysis', {
+        scannedText: ocrText,
+        directAnalysisResults: analysisResults,
+        savedImagePath: scan.imagePath
+      });
     } catch (err) {
       console.error('Scanning error:', err);
       setError(err instanceof Error ? err.message : 'Failed to scan');
@@ -98,7 +111,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
       setLoading(false);
       setLoadingMessage('');
     }
-  }, [navigation, isLowLight, useDirectImageAnalysis]);
+  }, [navigation, isLowLight, useDirectImageAnalysis, loading]);
 
   if (!hasPermission) {
     return (
