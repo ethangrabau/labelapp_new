@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ImageStorageService, StoredScan } from '../services/imageStorageService';
 import { RootStackParamList } from '../types/navigation';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 type HistoryScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -42,6 +43,15 @@ export function HistoryScreen() {
     });
   };
 
+  const handleDelete = async (scan: StoredScan) => {
+    try {
+      await ImageStorageService.deleteScan(scan.id);
+      loadScans(); // Reload the list after deletion
+    } catch (error) {
+      console.error('Error deleting scan:', error);
+    }
+  };
+
   const renderItem = ({ item }: { item: StoredScan }) => (
     <TouchableOpacity
       style={styles.scanItem}
@@ -53,6 +63,12 @@ export function HistoryScreen() {
           {new Date(item.timestamp).toLocaleString()}
         </Text>
       </View>
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => handleDelete(item)}
+      >
+        <MaterialCommunityIcons name="delete" size={24} color="#ff4444" />
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
@@ -111,5 +127,9 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 16,
     color: '#666',
+  },
+  deleteButton: {
+    padding: 8,
+    marginLeft: 8,
   },
 });
