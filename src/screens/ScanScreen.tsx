@@ -4,6 +4,7 @@ import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import { analyzeImageWithGemini } from '../services/geminiImageService';
 import { ImageStorageService } from '../services/imageStorageService';
 import type { ScanScreenProps } from '../types/navigation';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -15,6 +16,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
   const [isLowLight, setIsLowLight] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
+  const [flashMode, setFlashMode] = useState<'off' | 'on' | 'auto'>('off');
   const camera = useRef<Camera>(null);
 
   // Request permissions on mount
@@ -53,7 +55,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
       const photo = await camera.current.takePhoto({
         qualityPrioritization: 'speed',
         skipMetadata: true,
-        flash: isLowLight ? 'on' : 'off'
+        flash: flashMode
       });
       
       console.log('Photo taken:', photo);
@@ -93,7 +95,31 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
       setLoading(false);
       setLoadingMessage('');
     }
-  }, [navigation, isLowLight, loading]);
+  }, [navigation, flashMode, loading]);
+
+  const toggleFlash = () => {
+    setFlashMode(current => {
+      switch (current) {
+        case 'off':
+          return 'on';
+        case 'on':
+          return 'auto';
+        case 'auto':
+          return 'off';
+      }
+    });
+  };
+
+  const getFlashIcon = () => {
+    switch (flashMode) {
+      case 'off':
+        return 'flash-off';
+      case 'on':
+        return 'flash';
+      case 'auto':
+        return 'flash-auto';
+    }
+  };
 
   if (!hasPermission) {
     return (
@@ -125,8 +151,19 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
         device={device}
         isActive={true}
         photo={true}
+        flash={flashMode}
         enableZoomGesture
       />
+      <TouchableOpacity
+        style={styles.flashButton}
+        onPress={toggleFlash}
+      >
+        <MaterialCommunityIcons
+          name={getFlashIcon()}
+          size={24}
+          color="white"
+        />
+      </TouchableOpacity>
       <View style={styles.overlay}>
         {/* Scanning guide overlay */}
         <View style={styles.scanArea}>
@@ -295,5 +332,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 10,
     textAlign: 'center',
+  },
+  flashButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
