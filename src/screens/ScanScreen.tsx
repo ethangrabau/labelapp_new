@@ -1,13 +1,17 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Platform } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Platform, Dimensions } from 'react-native';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 import type { ScanScreenProps } from '../types/navigation';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
   const [hasPermission, setHasPermission] = React.useState(false);
   const device = useCameraDevice('back');
   const [error, setError] = useState('');
+  const [isLowLight, setIsLowLight] = useState(false);
   const camera = useRef<Camera>(null);
 
   // Request permissions on mount
@@ -37,7 +41,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
       const photo = await camera.current.takePhoto({
         qualityPrioritization: 'speed',
         skipMetadata: true,
-        flash: 'off'
+        flash: isLowLight ? 'on' : 'off'
       });
       
       console.log('Photo taken:', photo);
@@ -61,7 +65,12 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
       console.error('Scanning error:', err);
       setError(err instanceof Error ? err.message : 'Failed to scan');
     }
-  }, [navigation]);
+  }, [navigation, isLowLight]);
+
+  // Handle low light detection
+  const onFrameProcessorResult = useCallback((result: { isLowLight: boolean }) => {
+    setIsLowLight(result.isLowLight);
+  }, []);
 
   if (!hasPermission) {
     return (
@@ -102,23 +111,62 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
         isActive={true}
         photo={true}
         enableZoomGesture
+        frameProcessor={device.supportsLowLightBoost ? {
+          frameProcessor: async (frame) => {
+            const { lux } = await frame.analyze('light');
+            return { isLowLight: lux < 5 };
+          },
+          processorOptions: {
+            maxFrameRate: 1,
+          },
+        } : undefined}
+        onFrameProcessorResult={onFrameProcessorResult}
       />
       <View style={styles.overlay}>
-        {error ? (
-          <Text style={styles.errorText}>{error}</Text>
-        ) : (
-          <Text style={styles.guideText}>Point camera at ingredient label</Text>
-        )}
-        <TouchableOpacity 
-          style={styles.captureButton}
-          onPress={onScanPress}
-        >
-          <Text style={styles.buttonText}>Scan Label</Text>
-        </TouchableOpacity>
+        {/* Scanning guide overlay */}
+        <View style={styles.scanArea}>
+          <View style={styles.cornerTL} />
+          <View style={styles.cornerTR} />
+          <View style={styles.cornerBL} />
+          <View style={styles.cornerBR} />
+        </View>
+
+        {/* Status and controls */}
+        <View style={styles.controls}>
+          {error ? (
+            <Text style={styles.errorText}>{error}</Text>
+          ) : (
+            <>
+              <Text style={styles.guideText}>
+                Point camera at ingredient label
+              </Text>
+              {isLowLight && (
+                <Text style={styles.warningText}>
+                  Low light detected - flash will be used
+                </Text>
+              )}
+            </>
+          )}
+          <TouchableOpacity 
+            style={[
+              styles.captureButton,
+              isLowLight && styles.captureButtonLowLight
+            ]}
+            onPress={onScanPress}
+          >
+            <Text style={styles.buttonText}>
+              {isLowLight ? 'Scan Label (with Flash)' : 'Scan Label'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
 };
+
+const CORNER_SIZE = 40;
+const STROKE_WIDTH = 4;
+const SCAN_AREA_SIZE = SCREEN_WIDTH * 0.8;
 
 const styles = StyleSheet.create({
   container: {
@@ -127,9 +175,60 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
+  },
+  scanArea: {
+    width: SCAN_AREA_SIZE,
+    height: SCAN_AREA_SIZE,
+    marginTop: SCREEN_HEIGHT * 0.2,
+    position: 'relative',
+  },
+  cornerTL: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: CORNER_SIZE,
+    height: CORNER_SIZE,
+    borderTopWidth: STROKE_WIDTH,
+    borderLeftWidth: STROKE_WIDTH,
+    borderColor: '#2196F3',
+  },
+  cornerTR: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: CORNER_SIZE,
+    height: CORNER_SIZE,
+    borderTopWidth: STROKE_WIDTH,
+    borderRightWidth: STROKE_WIDTH,
+    borderColor: '#2196F3',
+  },
+  cornerBL: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: CORNER_SIZE,
+    height: CORNER_SIZE,
+    borderBottomWidth: STROKE_WIDTH,
+    borderLeftWidth: STROKE_WIDTH,
+    borderColor: '#2196F3',
+  },
+  cornerBR: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: CORNER_SIZE,
+    height: CORNER_SIZE,
+    borderBottomWidth: STROKE_WIDTH,
+    borderRightWidth: STROKE_WIDTH,
+    borderColor: '#2196F3',
+  },
+  controls: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 40,
   },
   guideText: {
     color: 'white',
@@ -138,6 +237,15 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginBottom: 20,
     fontSize: 16,
+    textAlign: 'center',
+  },
+  warningText: {
+    color: '#FFA500',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 20,
+    fontSize: 14,
     textAlign: 'center',
   },
   errorText: {
@@ -153,7 +261,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#2196F3',
     padding: 15,
     borderRadius: 25,
-    marginBottom: 40,
+    minWidth: 150,
+    alignItems: 'center',
+  },
+  captureButtonLowLight: {
+    backgroundColor: '#FFA500',
   },
   buttonText: {
     color: 'white',

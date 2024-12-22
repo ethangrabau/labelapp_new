@@ -64,7 +64,7 @@ async function makeGeminiRequest(prompt: string): Promise<string> {
 const SYSTEM_PROMPT = `You are an expert in food ingredients analysis. Your task is to:
 1. Identify ingredients from potentially imperfect OCR text
 2. Flag any concerning ingredients
-3. Provide a brief analysis
+3. Provide a brief analysis with scientific sources
 
 Important OCR Handling Guidelines:
 - Look for common OCR mistakes (e.g., 'cocod' likely means 'cocoa')
@@ -76,8 +76,21 @@ Response Format:
 {
   "ingredients": ["list", "of", "cleaned", "ingredients"],
   "concerns": ["any", "concerning", "ingredients"],
-  "analysis": "brief analysis focusing on health implications"
-}`;
+  "analysis": "brief analysis focusing on health implications",
+  "sources": [
+    {
+      "title": "Scientific paper or reputable source title",
+      "url": "URL to the source"
+    }
+  ]
+}
+
+Requirements:
+- Always include at least 2 scientific sources (research papers, FDA/EPA documents, or reputable health organizations)
+- Sources must be real and accessible
+- Prefer recent sources (within last 5-10 years when possible)
+- Include direct URLs to the sources
+- Focus on peer-reviewed research when available`;
 
 export async function analyzeIngredientWithGemini(ingredient: string): Promise<IngredientAnalysis> {
   try {
@@ -104,7 +117,7 @@ Please analyze this ingredient, considering possible OCR errors and provide your
       console.log('Parsed analysis:', analysis);
       
       // Validate the response format
-      if (!analysis.ingredients || !analysis.concerns || !analysis.analysis) {
+      if (!analysis.ingredients || !analysis.concerns || !analysis.analysis || !analysis.sources) {
         throw new Error('Invalid response format from API');
       }
       
@@ -112,10 +125,7 @@ Please analyze this ingredient, considering possible OCR errors and provide your
         name: ingredient,
         safety: analysis.concerns.length > 0 ? 'questionable' : 'safe',
         explanation: analysis.analysis,
-        sources: [{
-          title: 'Gemini Analysis',
-          url: 'https://example.com'
-        }]
+        sources: analysis.sources
       };
     } catch (parseError) {
       console.error('Failed to parse API response:', parseError);
