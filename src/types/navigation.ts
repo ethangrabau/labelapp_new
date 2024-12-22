@@ -8,14 +8,16 @@ interface IngredientAnalysis {
 }
 
 export type RootStackParamList = {
+  Main: undefined;
+  History: undefined;
   Scan: undefined;
   Analysis: {
     scannedText: string;
-    directAnalysisResults: IngredientAnalysis[] | null;
+    directAnalysisResults: any;
+    savedImagePath?: string;
   };
   Details: {
-    ingredientName: string;
-    safetyInfo: IngredientSafetyInfo;
+    ingredient: string;
   };
 };
 
