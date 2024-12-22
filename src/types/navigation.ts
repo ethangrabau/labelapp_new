@@ -1,9 +1,17 @@
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+
+interface IngredientAnalysis {
+  name: string;
+  safety: 'safe' | 'questionable' | 'warning';
+  explanation: string;
+  sources: Array<{ title: string; url: string; }>;
+}
 
 export type RootStackParamList = {
   Scan: undefined;
   Analysis: {
     scannedText: string;
+    directAnalysisResults: IngredientAnalysis[] | null;
   };
   Details: {
     ingredientName: string;

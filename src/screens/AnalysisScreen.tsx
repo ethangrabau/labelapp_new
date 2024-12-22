@@ -65,6 +65,15 @@ export const AnalysisScreen: React.FC<Props> = ({ route, navigation }) => {
     const analyzeIngredients = async () => {
       try {
         setLoading(true);
+        
+        // If we have direct analysis results, use those
+        if (route.params.directAnalysisResults) {
+          setAnalysisResults(route.params.directAnalysisResults);
+          setError(null);
+          return;
+        }
+        
+        // Otherwise, parse and analyze the OCR text
         const ingredients = parseIngredients(route.params.scannedText);
         console.log('Parsed ingredients:', ingredients);
         
@@ -85,7 +94,7 @@ export const AnalysisScreen: React.FC<Props> = ({ route, navigation }) => {
     };
 
     analyzeIngredients();
-  }, [route.params.scannedText]);
+  }, [route.params]);
 
   const handleSourceClick = async (url: string) => {
     try {

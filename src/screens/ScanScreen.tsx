@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Platform, Dimensions } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Platform, Dimensions, Switch, ActivityIndicator } from 'react-native';
 import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
+import { analyzeImageWithGemini } from '../services/geminiImageService';
 import type { ScanScreenProps } from '../types/navigation';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -12,6 +13,9 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
   const device = useCameraDevice('back');
   const [error, setError] = useState('');
   const [isLowLight, setIsLowLight] = useState(false);
+  const [useDirectImageAnalysis, setUseDirectImageAnalysis] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
   const camera = useRef<Camera>(null);
 
   // Request permissions on mount
@@ -30,6 +34,10 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
 
   const onScanPress = useCallback(async () => {
     try {
+      setLoading(true);
+      setLoadingMessage('Taking photo...');
+      setError('');
+      
       console.log('Scan button pressed');
       if (!camera.current) {
         console.error('Camera ref is null');
@@ -37,6 +45,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
         return;
       }
 
+      const startTime = Date.now();
       console.log('Taking photo...');
       const photo = await camera.current.takePhoto({
         qualityPrioritization: 'speed',
@@ -45,6 +54,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
       });
       
       console.log('Photo taken:', photo);
+      console.log('Photo capture took:', Date.now() - startTime, 'ms');
       
       // Create the full file path
       const filePath = Platform.OS === 'android' 
@@ -52,20 +62,43 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
         : photo.path;
         
       console.log('Processing photo at path:', filePath);
-      
-      const result = await TextRecognition.recognize(filePath);
-      console.log('OCR Raw Text Result:', result.text);
-      
-      if (result.text) {
-        navigation.navigate('Analysis', { scannedText: result.text });
+
+      if (useDirectImageAnalysis) {
+        setLoadingMessage('Analyzing image with AI...');
+        console.log('Using direct image analysis with Gemini Vision...');
+        const analysisStartTime = Date.now();
+        const results = await analyzeImageWithGemini(filePath);
+        console.log('Direct image analysis took:', Date.now() - analysisStartTime, 'ms');
+        console.log('Total processing time:', Date.now() - startTime, 'ms');
+        navigation.navigate('Analysis', { 
+          scannedText: '', // Empty string since we're not using OCR
+          directAnalysisResults: results 
+        });
       } else {
-        setError('No text found');
+        setLoadingMessage('Reading text from image...');
+        console.log('Using OCR + Text analysis...');
+        const ocrStartTime = Date.now();
+        const result = await TextRecognition.recognize(filePath);
+        console.log('OCR took:', Date.now() - ocrStartTime, 'ms');
+        console.log('OCR Raw Text Result:', result.text);
+        
+        if (result.text) {
+          navigation.navigate('Analysis', { 
+            scannedText: result.text,
+            directAnalysisResults: null
+          });
+        } else {
+          setError('No text found');
+        }
       }
     } catch (err) {
       console.error('Scanning error:', err);
       setError(err instanceof Error ? err.message : 'Failed to scan');
+    } finally {
+      setLoading(false);
+      setLoadingMessage('');
     }
-  }, [navigation, isLowLight]);
+  }, [navigation, isLowLight, useDirectImageAnalysis]);
 
   if (!hasPermission) {
     return (
@@ -116,6 +149,14 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
           <View style={styles.cornerBR} />
         </View>
 
+        {/* Loading overlay */}
+        {loading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#2196F3" />
+            <Text style={styles.loadingText}>{loadingMessage}</Text>
+          </View>
+        )}
+
         {/* Status and controls */}
         <View style={styles.controls}>
           {error ? (
@@ -130,12 +171,24 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
                   Low light detected - flash will be used
                 </Text>
               )}
+              <View style={styles.modeSwitch}>
+                <Text style={styles.modeSwitchText}>
+                  {useDirectImageAnalysis ? 'Direct Image Analysis' : 'OCR + Text Analysis'}
+                </Text>
+                <Switch
+                  value={useDirectImageAnalysis}
+                  onValueChange={setUseDirectImageAnalysis}
+                  trackColor={{ false: '#767577', true: '#81b0ff' }}
+                  thumbColor={useDirectImageAnalysis ? '#2196F3' : '#f4f3f4'}
+                />
+              </View>
               <TouchableOpacity 
                 style={[
                   styles.captureButton,
                   isLowLight && styles.captureButtonLowLight
                 ]}
                 onPress={onScanPress}
+                disabled={loading}
               >
                 <Text style={styles.buttonText}>
                   {isLowLight ? 'Scan Label (with Flash)' : 'Scan Label'}
@@ -227,6 +280,15 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: 'center',
   },
+  modeSwitch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modeSwitchText: {
+    color: 'white',
+    marginRight: 10,
+  },
   captureButton: {
     backgroundColor: '#2196F3',
     paddingHorizontal: 30,
@@ -246,5 +308,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     margin: 20,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: 'white',
+    fontSize: 16,
+    marginTop: 10,
+    textAlign: 'center',
   },
 });
