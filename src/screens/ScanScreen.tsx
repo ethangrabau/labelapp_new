@@ -54,7 +54,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
       console.log('Processing photo at path:', filePath);
       
       const result = await TextRecognition.recognize(filePath);
-      console.log('Recognition result:', result);
+      console.log('OCR Raw Text Result:', result.text);
       
       if (result.text) {
         navigation.navigate('Analysis', { scannedText: result.text });
@@ -66,11 +66,6 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
       setError(err instanceof Error ? err.message : 'Failed to scan');
     }
   }, [navigation, isLowLight]);
-
-  // Handle low light detection
-  const onFrameProcessorResult = useCallback((result: { isLowLight: boolean }) => {
-    setIsLowLight(result.isLowLight);
-  }, []);
 
   if (!hasPermission) {
     return (
@@ -111,16 +106,6 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
         isActive={true}
         photo={true}
         enableZoomGesture
-        frameProcessor={device.supportsLowLightBoost ? {
-          frameProcessor: async (frame) => {
-            const { lux } = await frame.analyze('light');
-            return { isLowLight: lux < 5 };
-          },
-          processorOptions: {
-            maxFrameRate: 1,
-          },
-        } : undefined}
-        onFrameProcessorResult={onFrameProcessorResult}
       />
       <View style={styles.overlay}>
         {/* Scanning guide overlay */}
@@ -145,19 +130,19 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
                   Low light detected - flash will be used
                 </Text>
               )}
+              <TouchableOpacity 
+                style={[
+                  styles.captureButton,
+                  isLowLight && styles.captureButtonLowLight
+                ]}
+                onPress={onScanPress}
+              >
+                <Text style={styles.buttonText}>
+                  {isLowLight ? 'Scan Label (with Flash)' : 'Scan Label'}
+                </Text>
+              </TouchableOpacity>
             </>
           )}
-          <TouchableOpacity 
-            style={[
-              styles.captureButton,
-              isLowLight && styles.captureButtonLowLight
-            ]}
-            onPress={onScanPress}
-          >
-            <Text style={styles.buttonText}>
-              {isLowLight ? 'Scan Label (with Flash)' : 'Scan Label'}
-            </Text>
-          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -226,52 +211,40 @@ const styles = StyleSheet.create({
     borderColor: '#2196F3',
   },
   controls: {
-    width: '100%',
     alignItems: 'center',
-    marginBottom: 40,
+    width: '100%',
+    marginBottom: 20,
   },
   guideText: {
     color: 'white',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 20,
     fontSize: 16,
+    marginBottom: 20,
     textAlign: 'center',
   },
   warningText: {
-    color: '#FFA500',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 20,
+    color: '#FFA726',
     fontSize: 14,
-    textAlign: 'center',
-  },
-  errorText: {
-    color: 'red',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    padding: 10,
-    borderRadius: 5,
     marginBottom: 20,
-    fontSize: 16,
     textAlign: 'center',
   },
   captureButton: {
     backgroundColor: '#2196F3',
-    padding: 15,
+    paddingHorizontal: 30,
+    paddingVertical: 15,
     borderRadius: 25,
-    minWidth: 150,
-    alignItems: 'center',
   },
   captureButtonLowLight: {
-    backgroundColor: '#FFA500',
+    backgroundColor: '#FFA726',
   },
   buttonText: {
-    color: 'white',
     fontSize: 16,
+    color: 'white',
     fontWeight: 'bold',
   },
+  errorText: {
+    color: '#ff4444',
+    fontSize: 16,
+    textAlign: 'center',
+    margin: 20,
+  },
 });
-
-export default ScanScreen;
