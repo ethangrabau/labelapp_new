@@ -43,15 +43,10 @@ yarn-error.log
 
 # fastlane
 #
-# It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the
-# screenshots whenever they are needed.
-# For more information about the recommended setup visit:
-# https://docs.fastlane.tools/best-practices/source-control/
-
-**/fastlane/report.xml
-**/fastlane/Preview.html
-**/fastlane/screenshots
-**/fastlane/test_output
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
 
 # Bundle artifact
 *.jsbundle
@@ -66,5 +61,45 @@ yarn-error.log
 # testing
 /coverage
 
-# Environment variables
-.env
+# Expo
+.expo/
+dist/
+web-build/
+
+# Native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# Android build files and assets
+android/app/build/
+android/app/debug/
+android/app/release/
+android/app/src/main/assets/index.android.bundle
+android/app/src/main/res/drawable-*/
+android/app/src/main/res/raw/
+*.apk
+*.aab
+*.bundle
+*.bundle.map
