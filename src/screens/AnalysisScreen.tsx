@@ -107,7 +107,7 @@ export const AnalysisScreen: React.FC<Props> = ({ route, navigation }) => {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
         {route.params.savedImagePath && (
           <View style={styles.imageContainer}>
             <Image
@@ -159,19 +159,14 @@ export const AnalysisScreen: React.FC<Props> = ({ route, navigation }) => {
             </View>
           )}
         </View>
-        <TouchableOpacity 
-          style={styles.ocrSection} 
-          onPress={() => setShowOcrText(!showOcrText)}
-        >
-          <View style={styles.ocrHeader}>
-            <Text style={styles.ocrTitle}>See Scanned Text</Text>
-            <Text style={styles.arrow}>{showOcrText ? '▼' : '▶'}</Text>
-          </View>
-          {showOcrText && (
-            <Text style={styles.ocrText}>{route.params.scannedText}</Text>
-          )}
-        </TouchableOpacity>
       </ScrollView>
+
+      <TouchableOpacity 
+        style={styles.scanAnotherButton}
+        onPress={() => navigation.replace('BeeSafe')}
+      >
+        <Text style={styles.scanAnotherButtonText}>Scan Another</Text>
+      </TouchableOpacity>
 
       <Modal
         visible={selectedIngredient !== null}
@@ -216,6 +211,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollViewContent: {
+    paddingBottom: 100,
   },
   imageContainer: {
     width: '100%',
@@ -286,33 +284,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  ocrSection: {
-    marginTop: 20,
-    padding: 15,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    width: '100%',
-  },
-  ocrHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  ocrTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-  },
-  arrow: {
-    fontSize: 16,
-    color: '#666',
-  },
-  ocrText: {
-    marginTop: 10,
-    color: '#666',
-    fontSize: 14,
-    fontFamily: 'monospace',
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -367,5 +338,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     margin: 16,
     fontSize: 16,
+  },
+  scanAnotherButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 1000,
+  },
+  scanAnotherButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

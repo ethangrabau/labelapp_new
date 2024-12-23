@@ -10,7 +10,7 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
-  const [hasPermission, setHasPermission] = React.useState(false);
+  const [hasPermission, setHasPermission] = React.useState<boolean | null>(null);
   const device = useCameraDevice('back');
   const [error, setError] = useState('');
   const [isLowLight, setIsLowLight] = useState(false);
@@ -28,7 +28,14 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
     try {
       const cameraPermission = await Camera.requestCameraPermission();
       console.log('Camera permission status:', cameraPermission);
+      
+      // Add a small delay before updating the permission state to avoid flashing
+      await new Promise(resolve => setTimeout(resolve, 500));
       setHasPermission(cameraPermission === 'granted');
+      
+      if (cameraPermission !== 'granted') {
+        setError('Camera permission is required to scan labels');
+      }
     } catch (err) {
       console.error('Permission error:', err);
       setError('Failed to get camera permission');
@@ -121,15 +128,25 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ navigation }) => {
     }
   };
 
+  // Render loading state
+  if (hasPermission === null) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color="#2196F3" />
+      </View>
+    );
+  }
+
+  // Render error state if permission denied
   if (!hasPermission) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>Camera permission is required</Text>
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.errorText}>Camera permission not granted</Text>
         <TouchableOpacity 
-          style={styles.captureButton}
+          style={styles.retryButton}
           onPress={requestCameraPermission}
         >
-          <Text style={styles.buttonText}>Grant Camera Permission</Text>
+          <Text style={styles.retryButtonText}>Grant Permission</Text>
         </TouchableOpacity>
       </View>
     );
@@ -343,5 +360,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  retryButton: {
+    marginTop: 20,
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
