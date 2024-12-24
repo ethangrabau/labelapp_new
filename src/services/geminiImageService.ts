@@ -19,7 +19,7 @@ const SYSTEM_PROMPT = `Analyze this food ingredient label image and provide a de
     {
       "name": "ingredient name",
       "safety": "safe",
-      "explanation": "brief explanation of safety assessment",
+      "explanation": "brief scientific explanation of safety assessment during pregnancy",
       "sources": [
         {
           "title": "FDA Database",
@@ -31,10 +31,34 @@ const SYSTEM_PROMPT = `Analyze this food ingredient label image and provide a de
 }
 
 For each ingredient:
-1. Extract the name exactly as shown
-2. Rate safety as "safe", "questionable", or "warning"
-3. Provide a brief scientific explanation
-4. Include reliable sources`;
+1. Rate safety specifically for pregnant women as:
+   - "safe" (proven safe during pregnancy with no known risks)
+   - "questionable" (limited research, conflicting evidence, or requires moderation)
+   - "warning" (should be avoided or strictly limited during pregnancy)
+
+2. IMPORTANT SPECIFIC RULES:
+   - Caffeine: ALWAYS rate as "questionable" with explanation about 200mg daily limit
+   - Alcohol: ALWAYS rate as "warning" (no safe amount during pregnancy)
+   - Artificial sweeteners: Rate as "questionable" unless specifically proven safe
+   - Herbal ingredients: Default to "questionable" unless proven safe for pregnancy
+
+3. Consider pregnancy-specific concerns:
+   - Ability to cross the placental barrier
+   - Effects on fetal development
+   - Impact on maternal health during pregnancy
+   - Concentration and recommended limits
+
+4. Provide clear pregnancy-focused explanations:
+   - Mention specific trimester concerns if applicable
+   - Include recommended limits when relevant
+   - Explain why an ingredient may be risky
+
+5. Include at least one reliable medical source:
+   - Medical journals
+   - FDA/WHO/CDC guidelines
+   - Pregnancy-specific medical resources
+
+Return ONLY the JSON response, no additional text.`;
 
 async function imageToBase64(imagePath: string): Promise<string> {
   try {
